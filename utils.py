@@ -37,7 +37,7 @@ def print_nn_dist(dist):
         x.add_row([str(s), str(d)])
     print(x)
     
-def bfs_undirected(G, start):
+def bfs_undirected(G, start, return_tuple=False):
     dist = {}
     Q = deque()
     Q.append((0,start))
@@ -49,20 +49,84 @@ def bfs_undirected(G, start):
             continue
         for v in G[current]:
             Q.append((distance+1, v))
-    tuple_dist = []
-    for k,v in dist.items():
-        tuple_dist.append((k,v))
-    return sorted(tuple_dist, key=lambda x:x[0])
+    if return_tuple:
+        tuple_dist = []
+        for k,v in dist.items():
+            tuple_dist.append((k,v))
+        return sorted(tuple_dist, key=lambda x:x[0])
+    else:
+        return dist
 
-def closeness_centrality_undirected(dist:list, v) -> int:
+def closeness_centrality_undirected(G:dict, v) -> int:
     """
     Args:
-       -dist: list containing the distance from source node to other nodes.
-       -v: ID of the source node.
+       -G: Graph
+       -v: ID of the source node
    Return:
-       -closeness: returns closeness centrality for specified node.
+       -closeness centrality for specified node
     """
+    dist = bfs_undirected(G, v, return_tuple=True)
     return 1/sum([y for x,y in dist if x != v])
 
-def betweennes_centrality_undirected(dist:list, v):
-    pass
+
+def get_all_paths(G, s:int, d:int, sp:int):
+    """
+    Args:
+        -G: Graph
+        -s: source node
+        -d: destination node
+        -sp: shortest path between u and v
+    Return:
+        -list of all possible paths from u to v with length = sp
+    """
+    Q = deque()
+    Q.append((0, s, str(s)))
+    sol = []
+    while Q:
+        distance, current, path = Q.popleft()
+        if distance > sp:
+            continue
+        elif distance == sp and current == d:
+            sol.append(path)
+        else:
+            for v in G[current]:
+                Q.append((distance+1, v, path+ f" {v}"))
+    return sol
+
+def betweennes_centrality_undirected(G:dict, v):
+    """
+    Args:
+        -G: Graph
+        -v: ID of the source node
+    Return:
+        -betweennes centrality for specified node
+
+    For now we just use plain BFS to compute distances between
+    pairs of nodes. It is very expensive and not efficient, it would
+    be better to pre-compute the distance between any pair of nodes
+    using floyd-warshall or a similar algorithm.
+    """
+    # assuming graph is connected here
+    
+    nodes = G.keys()
+    score = 0
+    done = set()
+    for s in nodes:
+        for t in nodes:
+            if t == v or s==v or  t == s or (t,s) in done or (s,t) in done: continue
+            done.add((s,t))
+            done.add((t,s))
+            # get distance between u and v
+            dist = bfs_undirected(G, s)
+            dist_s_t = dist[t]
+            print(f"Paths for {s}-{t}")
+            possible_paths = get_all_paths(G, s, t, dist_s_t)
+            print(possible_paths)
+            denominator = len(possible_paths)
+            numerator = 0
+            for path in possible_paths:
+                if str(v) in path.split(" "):
+                    numerator += 1
+            #print(f"adding {numerator}/{denominator}")
+            score += (numerator / denominator)
+    return score
